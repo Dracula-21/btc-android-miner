@@ -50,15 +50,15 @@ jobs:
       - name: Force extract native libs and arm64 support
         working-directory: miner
         run: |
-          # Принудительное извлечение нативных библиотек при установке
-          echo "android.bundle.enableUncompressedNativeLibs=false" >> gradle.properties
+          # Убираем удаленную настройку, которая ломала сборку
+          # echo "android.bundle.enableUncompressedNativeLibs=false" >> gradle.properties  <-- УДАЛЕНО
           
           # Правка AndroidManifest.xml (добавляем extractNativeLibs)
           if [ -f app/src/main/AndroidManifest.xml ]; then
             sed -i 's/<application/<application android:extractNativeLibs="true"/' app/src/main/AndroidManifest.xml
           fi
 
-          # Добавляем поддержку 64-битной архитектуры для Android 13 в app/build.gradle (или .kts)
+          # Добавляем поддержку 64-битной архитектуры для Android 13
           if [ -f app/build.gradle ]; then
             sed -i '/defaultConfig {/a \        ndk { abiFilters "arm64-v8a" }' app/build.gradle
           elif [ -f app/build.gradle.kts ]; then
