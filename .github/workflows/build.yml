@@ -33,6 +33,12 @@ jobs:
           sudo apt-get install -y glslang-tools
           glslangValidator --version
 
+      - name: Fix Gradle version
+        working-directory: miner
+        run: |
+          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-bin.zip|' gradle/wrapper/gradle-wrapper.properties
+          cat gradle/wrapper/gradle-wrapper.properties
+
       - name: Build debug APK
         working-directory: miner
         env:
