@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    # Ключевое исправление: ослабить стратегию повторных попыток Gradle при ошибке 429
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.internal.repository.max.tentatives=6 -Dorg.gradle.internal.repository.initial.backoff=5000"
     steps:
       - name: Checkout BTC Android Miner
         uses: actions/checkout@v4
@@ -50,14 +53,13 @@ jobs:
       - name: Fix Native Libs Packaging
         working-directory: miner
         run: |
-          # Убираем extractNativeLibs из манифеста, если он там был
+          # Убираем extractNativeLibs из манифеста
           if [ -f app/src/main/AndroidManifest.xml ]; then
             sed -i 's/ android:extractNativeLibs="true"//g' app/src/main/AndroidManifest.xml
           fi
 
-          # Добавляем правильную настройку useLegacyPackaging в build.gradle или build.gradle.kts
+          # Добавляем правильную настройку useLegacyPackaging
           if [ -f app/build.gradle ]; then
-            # Для Groovy (build.gradle)
             echo "" >> app/build.gradle
             echo "android {" >> app/build.gradle
             echo "    packagingOptions {" >> app/build.gradle
@@ -67,7 +69,6 @@ jobs:
             echo "    }" >> app/build.gradle
             echo "}" >> app/build.gradle
           elif [ -f app/build.gradle.kts ]; then
-            # Для Kotlin DSL (build.gradle.kts)
             echo "" >> app/build.gradle.kts
             echo "android {" >> app/build.gradle.kts
             echo "    packagingOptions {" >> app/build.gradle.kts
