@@ -33,11 +33,27 @@ jobs:
           sudo apt-get install -y glslang-tools
           glslangValidator --version
 
-      - name: Fix Gradle version
+      - name: Patch Gradle and Project Settings
         working-directory: miner
         run: |
-          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-bin.zip|' gradle/wrapper/gradle-wrapper.properties
-          cat gradle/wrapper/gradle-wrapper.properties
+          # 1. Понижаем версию Gradle до стабильной 8.5 (8.13 может быть слишком новой для старых плагинов)
+          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.5-bin.zip|' gradle/wrapper/gradle-wrapper.properties
+
+          # 2. Принудительно обновляем Android Gradle Plugin до версии, совместимой с Gradle 8.5
+          # Ищем файл build.gradle и заменяем версию AGP
+          find . -name "build.gradle" -exec sed -i 's/com.android.tools.build:gradle:[0-9.]*/com.android.tools.build:gradle:8.2.2/g' {} +
+          
+          # 3. Убеждаемся, что репозитории google() и mavenCentral() подключены в settings.gradle
+          if [ -f settings.gradle ]; then
+            if ! grep -q "google()" settings.gradle; then
+              echo "Adding repositories to settings.gradle"
+              sed -i '/dependencyResolutionManagement/i \        google()\n        mavenCentral()' settings.gradle || true
+            fi
+          fi
+
+          # 4. Добавляем gradle.properties настройки для стабильной работы
+          echo "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8" >> gradle.properties
+          echo "android.useAndroidX=true" >> gradle.properties
 
       - name: Build debug APK
         working-directory: miner
