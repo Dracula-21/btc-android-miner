@@ -38,8 +38,10 @@ jobs:
       - name: Patch Gradle and Project Settings
         working-directory: miner
         run: |
+          # 1. Ставим Gradle 9.1.0
           sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-9.1.0-bin.zip|' gradle/wrapper/gradle-wrapper.properties
           
+          # 2. Меняем версию AGP на стабильную 8.2.2
           find . -name "*.gradle" -o -name "*.gradle.kts" | xargs sed -i 's/com.android.tools.build:gradle:[0-9.]*/com.android.tools.build:gradle:8.2.2/g'
           find . -name "*.gradle" -o -name "*.gradle.kts" | xargs sed -i 's/com.android.application" version "[0-9.]*"/com.android.application" version "8.2.2"/g'
           
@@ -92,6 +94,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: btc-android-miner-debug
-          # Ищем APK-файлы во всей папке проекта
-          path: miner/**/*.apk
+          # Ищем APK строго в папке outputs
+          path: miner/**/build/outputs/apk/debug/*.apk
           if-no-files-found: error
