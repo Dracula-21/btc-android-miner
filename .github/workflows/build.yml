@@ -82,31 +82,10 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug -Pandroid.injected.build.abi=arm64-v8a --stacktrace --no-daemon
 
-      - name: Sign and Collect APK
-        working-directory: miner
-        run: |
-          mkdir -p final_apk_output
-          # Находим собранный файл (даже если он в intermediates)
-          APK_PATH=$(find . -name "app-debug.apk" | head -n 1)
-          echo "Найден файл: $APK_PATH"
-          
-          # Путь к утилите для подписи
-          BUILD_TOOLS="/usr/local/lib/android/sdk/build-tools/34.0.0"
-          
-          # Генерируем отладочный ключ, если его нет
-          if [ ! -f debug.keystore ]; then
-            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          fi
-          
-          # Подписываем APK
-          $BUILD_TOOLS/apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out final_apk_output/signed-app-debug.apk "$APK_PATH"
-          
-          echo "Подписанный файл готов:"
-          ls -la final_apk_output/
-
-      - name: Upload Final APK
+      - name: Find and Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: btc-android-miner-signed
-          path: miner/final_apk_output/signed-app-debug.apk
+          name: btc-android-miner-debug
+          # Ищем APK строго в папке outputs
+          path: miner/**/build/outputs/apk/debug/*.apk
           if-no-files-found: error
