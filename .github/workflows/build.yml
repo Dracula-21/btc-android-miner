@@ -9,7 +9,6 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     env:
-      # Защита от ошибки "Too Many Requests" (429) при скачивании зависимостей
       GRADLE_OPTS: "-Dorg.gradle.internal.repository.max.tentatives=6 -Dorg.gradle.internal.repository.initial.backoff=5000"
     steps:
       - name: Checkout BTC Android Miner
@@ -39,26 +38,21 @@ jobs:
       - name: Patch Gradle and Project Settings
         working-directory: miner
         run: |
-          # 1. Ставим Gradle 9.1.0
           sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-9.1.0-bin.zip|' gradle/wrapper/gradle-wrapper.properties
-
-          # 2. Принудительно меняем версию AGP на стабильную 8.2.2
+          
           find . -name "*.gradle" -o -name "*.gradle.kts" | xargs sed -i 's/com.android.tools.build:gradle:[0-9.]*/com.android.tools.build:gradle:8.2.2/g'
           find . -name "*.gradle" -o -name "*.gradle.kts" | xargs sed -i 's/com.android.application" version "[0-9.]*"/com.android.application" version "8.2.2"/g'
-
-          # 3. Добавляем настройки памяти
+          
           echo "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8" >> gradle.properties
           echo "android.useAndroidX=true" >> gradle.properties
 
       - name: Fix Native Libs Packaging
         working-directory: miner
         run: |
-          # Убираем extractNativeLibs из манифеста
           if [ -f app/src/main/AndroidManifest.xml ]; then
             sed -i 's/ android:extractNativeLibs="true"//g' app/src/main/AndroidManifest.xml
           fi
 
-          # Добавляем правильную настройку useLegacyPackaging
           if [ -f app/build.gradle ]; then
             echo "" >> app/build.gradle
             echo "android {" >> app/build.gradle
@@ -79,7 +73,6 @@ jobs:
             echo "}" >> app/build.gradle.kts
           fi
 
-          # Добавляем поддержку 64-битной архитектуры
           if [ -f app/build.gradle ]; then
             sed -i '/defaultConfig {/a \        ndk { abiFilters "arm64-v8a" }' app/build.gradle
           elif [ -f app/build.gradle.kts ]; then
@@ -99,6 +92,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: btc-android-miner-debug
-          # Ищем любые .apk файлы в папке сборки
-          path: miner/app/build/outputs/apk/debug/*.apk
+          # Ищем APK-файлы во всей папке проекта
+          path: miner/**/*.apk
           if-no-files-found: error
