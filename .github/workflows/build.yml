@@ -8,8 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    # Ключевое исправление: ослабить стратегию повторных попыток Gradle при ошибке 429
     env:
+      # Защита от ошибки "Too Many Requests" (429) при скачивании зависимостей
       GRADLE_OPTS: "-Dorg.gradle.internal.repository.max.tentatives=6 -Dorg.gradle.internal.repository.initial.backoff=5000"
     steps:
       - name: Checkout BTC Android Miner
@@ -99,5 +99,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: btc-android-miner-debug
-          path: miner/app/build/outputs/apk/debug/app-debug.apk
+          # Ищем любые .apk файлы в папке сборки
+          path: miner/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
