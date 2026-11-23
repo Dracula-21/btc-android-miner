@@ -21,11 +21,19 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'platform-tools platforms;android-34 build-tools;34.0.0 ndk;25.1.8937393 cmake;3.22.1'
-          accept-android-sdk-licenses: true
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
+          export ANDROID_HOME=$ANDROID_SDK_ROOT
+          export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "ndk;25.1.8937393" \
+            "cmake;3.22.1"
 
       - name: Install Vulkan shader compiler
         run: |
@@ -33,29 +41,10 @@ jobs:
           sudo apt-get install -y glslang-tools
           glslangValidator --version
 
-      - name: Patch Project Settings
+      - name: Fix Native Libs Packaging (To prevent crash)
         working-directory: miner
         run: |
-          # Gradle 9.1.0
-          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-9.1.0-bin.zip|' gradle/wrapper/gradle-wrapper.properties
-          
-          # AGP 8.2.2
-          find . -name "*.gradle" -o -name "*.gradle.kts" | xargs sed -i 's/com.android.tools.build:gradle:[0-9.]*/com.android.tools.build:gradle:8.2.2/g'
-          find . -name "*.gradle" -o -name "*.gradle.kts" | xargs sed -i 's/com.android.application" version "[0-9.]*"/com.android.application" version "8.2.2"/g'
-          
-          # Память
-          echo "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8" >> gradle.properties
-          echo "android.useAndroidX=true" >> gradle.properties
-
-      - name: Fix Manifest and Packaging
-        working-directory: miner
-        run: |
-          # 1. Добавляем exported="true" в манифест (для Android 12+)
-          if [ -f app/src/main/AndroidManifest.xml ]; then
-            sed -i 's/<activity android:name=".MainActivity"/<activity android:name=".MainActivity" android:exported="true"/' app/src/main/AndroidManifest.xml
-          fi
-
-          # 2. Настройка упаковки
+          # Добавляем настройку, чтобы библиотеки распаковывались при установке
           if [ -f app/build.gradle ]; then
             echo "" >> app/build.gradle
             echo "android {" >> app/build.gradle
@@ -76,35 +65,19 @@ jobs:
             echo "}" >> app/build.gradle.kts
           fi
 
-          # 3. Архитектура
-          if [ -f app/build.gradle ]; then
-            sed -i '/defaultConfig {/a \        ndk { abiFilters "arm64-v8a" }' app/build.gradle
-          elif [ -f app/build.gradle.kts ]; then
-            sed -i '/defaultConfig {/a \        ndk { abiFilters += listOf("arm64-v8a") }' app/build.gradle.kts
-          fi
-
-      - name: Build and Sign APK
+      - name: Build debug APK
         working-directory: miner
         env:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
           ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
           chmod +x gradlew
-          # Собираем APK (Gradle сам подпишет его отладочным ключом)
-          ./gradlew assembleDebug -Pandroid.injected.build.abi=arm64-v8a --stacktrace --no-daemon
-
-      - name: Collect Final APK
-        working-directory: miner
-        run: |
-          mkdir -p final_output
-          # Ищем APK строго в outputs (финальный подписанный файл)
-          find . -path "*/outputs/apk/debug/*.apk" -exec cp {} final_output/ \;
-          echo "=== Файлы для загрузки ==="
-          ls -la final_output/
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: btc-miner-final
-          path: miner/final_output/*.apk
+          name: btc-android-miner-debug
+          # Оставляем путь как в вашем рабочем варианте
+          path: miner/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
