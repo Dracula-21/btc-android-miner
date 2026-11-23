@@ -82,10 +82,24 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug -Pandroid.injected.build.abi=arm64-v8a --stacktrace --no-daemon
 
-      - name: Find and Upload APK
+      - name: Find APK and prepare for upload
+        working-directory: miner
+        run: |
+          echo "=== Ищем все APK файлы в проекте ==="
+          find . -type f -name "*.apk"
+          
+          echo "=== Копируем найденный APK в чистую папку ==="
+          mkdir -p ready_apk
+          # Ищем любой APK и копируем его
+          find . -type f -name "*.apk" -exec cp {} ready_apk/ \;
+          
+          echo "=== Что лежит в ready_apk ==="
+          ls -la ready_apk/
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: btc-android-miner-debug
-          # Ищем APK строго в папке outputs
-          path: miner/**/build/outputs/apk/debug/*.apk
+          # Загружаем из чистой папки, куда мы только что скопировали файл
+          path: miner/ready_apk/*.apk
           if-no-files-found: error
